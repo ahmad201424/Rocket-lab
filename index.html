@@ -2,104 +2,154 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>3D Car Soccer</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-    #ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+    body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
+    #ui { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); color: white; font-size: 22px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 10; pointer-events: none; }
+    
+    /* Touch Controls */
+    .touch-btn { position: absolute; bottom: 20px; width: 80px; height: 80px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; user-select: none; z-index: 10; }
+    #btn-left { left: 20px; }
+    #btn-right { left: 110px; }
+    #btn-up { left: 65px; bottom: 105px; }
+    #btn-down { left: 65px; bottom: 20px; }
+    #btn-boost { right: 30px; bottom: 30px; width: 90px; height: 90px; background: rgba(255, 140, 0, 0.5); border-color: #ff8c00; }
   </style>
 </head>
 <body>
   <div id="ui">SCORE: <span id="score">0</span></div>
 
+  <!-- Touch Controls for Mobile -->
+  <div id="btn-up" class="touch-btn">▲</div>
+  <div id="btn-left" class="touch-btn">◄</div>
+  <div id="btn-right" class="touch-btn">►</div>
+  <div id="btn-boost" class="touch-btn">BOOST</div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
 
   <script>
-    // Setup Three.js Scene, Camera, Renderer
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb);
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    window.addEventListener('load', () => {
+      // Scene, Camera, Renderer
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87ceeb);
 
-    // Setup Physics World
-    const world = new CANNON.World();
-    world.gravity.set(0, -9.82, 0);
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
 
-    // Lighting
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(20, 40, 20);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
+      // Physics World
+      const world = new CANNON.World();
+      world.gravity.set(0, -9.82, 0);
 
-    // Ground Setup
-    const groundMat = new CANNON.Material();
-    const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: groundMat });
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    world.addBody(groundBody);
+      // Lights
+      const light = new THREE.DirectionalLight(0xffffff, 1.2);
+      light.position.set(20, 40, 20);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0x606060));
 
-    const groundMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(60, 100),
-      new THREE.MeshStandardMaterial({ color: 0x2e8b57 })
-    );
-    groundMesh.rotation.x = -Math.PI / 2;
-    scene.add(groundMesh);
+      // Ground
+      const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+      groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+      world.addBody(groundBody);
 
-    // Ball Setup
-    const ballRadius = 2;
-    const ballBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(ballRadius) });
-    ballBody.position.set(0, 5, 0);
-    world.addBody(ballBody);
+      const groundMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 100),
+        new THREE.MeshStandardMaterial({ color: 0x2e8b57 })
+      );
+      groundMesh.rotation.x = -Math.PI / 2;
+      scene.add(groundMesh);
 
-    const ballMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(ballRadius, 32, 32),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, wireframe: true })
-    );
-    scene.add(ballMesh);
+      // Ball
+      const ballRadius = 2;
+      const ballBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(ballRadius) });
+      ballBody.position.set(0, 5, 0);
+      world.addBody(ballBody);
 
-    // Car Setup
-    const carBody = new CANNON.Body({ mass: 150, shape: new CANNON.Box(new CANNON.Vec3(1.2, 0.6, 2)) });
-    carBody.position.set(0, 1, 20);
-    world.addBody(carBody);
+      const ballMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(ballRadius, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, wireframe: true })
+      );
+      scene.add(ballMesh);
 
-    const carMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(2.4, 1.2, 4),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    scene.add(carMesh);
+      // Player Car
+      const carBody = new CANNON.Body({ mass: 150, shape: new CANNON.Box(new CANNON.Vec3(1.2, 0.6, 2)) });
+      carBody.position.set(0, 1, 20);
+      world.addBody(carBody);
 
-    // Key Controls
-    const keys = {};
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+      const carMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(2.4, 1.2, 4),
+        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+      );
+      scene.add(carMesh);
 
-    // Game Loop
-    function animate() {
-      requestAnimationFrame(animate);
-      world.fixedStep();
+      // Input State
+      const inputs = { up: false, down: false, left: false, right: false, boost: false };
 
-      // Simple Driving Logic
-      const speed = 15;
-      if (keys['w'] || keys['arrowup']) carBody.position.z -= 0.3;
-      if (keys['s'] || keys['arrowdown']) carBody.position.z += 0.3;
-      if (keys['a'] || keys['arrowleft']) carBody.position.x -= 0.3;
-      if (keys['d'] || keys['arrowright']) carBody.position.x += 0.3;
+      // Keyboard Controls
+      window.addEventListener('keydown', e => {
+        if (['w', 'arrowup'].includes(e.key.toLowerCase())) inputs.up = true;
+        if (['s', 'arrowdown'].includes(e.key.toLowerCase())) inputs.down = true;
+        if (['a', 'arrowleft'].includes(e.key.toLowerCase())) inputs.left = true;
+        if (['d', 'arrowright'].includes(e.key.toLowerCase())) inputs.right = true;
+        if (e.key === ' ') inputs.boost = true;
+      });
 
-      // Sync Meshes with Physics Bodies
-      ballMesh.position.copy(ballBody.position);
-      ballMesh.quaternion.copy(ballBody.quaternion);
-      carMesh.position.copy(carBody.position);
-      carMesh.quaternion.copy(carBody.quaternion);
+      window.addEventListener('keyup', e => {
+        if (['w', 'arrowup'].includes(e.key.toLowerCase())) inputs.up = false;
+        if (['s', 'arrowdown'].includes(e.key.toLowerCase())) inputs.down = false;
+        if (['a', 'arrowleft'].includes(e.key.toLowerCase())) inputs.left = false;
+        if (['d', 'arrowright'].includes(e.key.toLowerCase())) inputs.right = false;
+        if (e.key === ' ') inputs.boost = false;
+      });
 
-      // Follow Camera
-      camera.position.set(carBody.position.x, carBody.position.y + 6, carBody.position.z + 12);
-      camera.lookAt(carBody.position);
+      // Mobile Touch Handlers
+      const bindTouch = (id, key) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); inputs[key] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); inputs[key] = false; });
+      };
 
-      renderer.render(scene, camera);
-    }
-    animate();
+      bindTouch('btn-up', 'up');
+      bindTouch('btn-down', 'down');
+      bindTouch('btn-left', 'left');
+      bindTouch('btn-right', 'right');
+      bindTouch('btn-boost', 'boost');
+
+      // Resize Event
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Main Loop
+      function animate() {
+        requestAnimationFrame(animate);
+        world.fixedStep();
+
+        let moveSpeed = inputs.boost ? 0.6 : 0.3;
+
+        if (inputs.up) carBody.position.z -= moveSpeed;
+        if (inputs.down) carBody.position.z += moveSpeed;
+        if (inputs.left) carBody.position.x -= moveSpeed;
+        if (inputs.right) carBody.position.x += moveSpeed;
+
+        ballMesh.position.copy(ballBody.position);
+        ballMesh.quaternion.copy(ballBody.quaternion);
+        carMesh.position.copy(carBody.position);
+        carMesh.quaternion.copy(carBody.quaternion);
+
+        camera.position.set(carBody.position.x, carBody.position.y + 6, carBody.position.z + 12);
+        camera.lookAt(carBody.position);
+
+        renderer.render(scene, camera);
+      }
+      animate();
+    });
   </script>
 </body>
 </html>
